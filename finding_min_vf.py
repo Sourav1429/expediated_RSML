@@ -143,8 +143,9 @@ class get_min_vf:
             print("P_N2=",P_N2)
             input()
         return vf
-    def get_vf(self):
+    def get_vf(self,run,df):
         V,pol = np.zeros(self.nS),np.zeros(self.nS)
+        pol_dict = {bin(i)[2:].zfill(4): i for i in range(16)}
         for t in range(self.T):
             for s in range(self.nS):
                 V[s] = np.max(self.Q[s,:])
@@ -163,8 +164,12 @@ class get_min_vf:
                     #Updating Q values
                     V_samples = V[next_state_samples]
                     V_rho = self.get_integrated_vf(V_samples,s,a,N2)
-                    print("V_rho=",V_rho)
+                    #print("V_rho=",V_rho)
                     self.Q[s,a] = (1-self.beta[t])*self.Q[s,a] + self.beta[t]*self.robust_bellman(r_hat,V_rho)
+            policy = ""
+            for j in range(self.nS):
+                policy = policy + str(np.argmax(self.Q[j]))
+            df[run][t] = pol_dict[policy]
         print("Q-table updation complete")
     def get_Q_table(self):
         return self.Q

@@ -77,12 +77,17 @@ class Machine_Replacement:
             return self.R
         else:
             print("Incorrect choice")
-    def gen_expected_reward(self):
+    def gen_expected_reward(self,ch=1):
         self.R = np.zeros((self.nA,self.nS));
         for i in range(self.nS):
             self.R[0,i] = self.cost[i];
             self.R[1,i] = self.rep_cost + self.cost[0];
-        return self.R;
+        if(ch==0):
+            return self.R
+        elif(ch==1):
+            return -self.R;
+        else:
+            print("Illegal choice")
     def gen_expected_cost(self):
         self.C = np.zeros((self.nA,self.nS));
         for i in range(self.nS):
