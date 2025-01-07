@@ -86,6 +86,10 @@ class Machine_Replacement:
             return self.R
         elif(ch==1):
             return -self.R;
+        elif(ch==2):
+            for s in range(self.nS):
+                for a in range(self.nA):
+                    self.R[a,s] = 1 - self.R[a,s]
         else:
             print("Illegal choice")
     def gen_expected_cost(self):
