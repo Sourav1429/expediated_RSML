@@ -9,7 +9,7 @@ from scipy.optimize import minimize
 import math
 
 class get_min_vf:
-    def __init__(self,psi,beta,T,nS,nA,N_max,mu_sa,sigma,gamma,P,ch = 2): #ch = 0,1 and 2 where 0 is TV, 1 is chi-square and 2 is for KL divergence
+    def __init__(self,psi,beta,T,nS,nA,N_max,mu_sa,sigma,gamma,P,uncertainity_set,ch = 2): #ch = 0,1 and 2 where 0 is TV, 1 is chi-square and 2 is for KL divergence
         self.psi = psi
         self.beta = beta
         self.T = T
@@ -22,6 +22,7 @@ class get_min_vf:
         self.sigma = sigma
         self.ch = ch
         self.p_sa = P
+        self.P = uncertainity_set
         
     def robust_bellman(self,r_hat,V_rho):
         ret_val = r_hat + self.gamma*V_rho
@@ -52,36 +53,38 @@ class get_min_vf:
     def del_V_s_a(self,V_samples):
         if(self.ch ==2):
             lower_bound = 1e-3  # Prevent x from being too small
-            constraints = [{'type': 'ineq', 'fun': lambda x: x[0] - lower_bound}]
+            constraints = {'type': 'ineq', 'fun': lambda x: x - lower_bound}
             x0 = 1.0
-            result = minimize(self.objective_KL, x0,args=(V_samples), constraints=constraints, bounds=[(lower_bound, None)])
+            result = minimize(self.objective_KL, x0,args=(V_samples), constraints=(constraints), bounds=[(lower_bound, None)])
             self.alpha1 = result.x[0]
-            result = minimize(self.objective_KL, x0,args=(V_samples[::2]), constraints=constraints, bounds=[(lower_bound, None)])
+            result = minimize(self.objective_KL, x0,args=(V_samples[::2]), constraints=(constraints), bounds=[(lower_bound, None)])
             self.alpha2 = result.x[0]
-            result = minimize(self.objective_KL, x0, args=(V_samples[1::2]),constraints=constraints, bounds=[(lower_bound,None)])
+            result = minimize(self.objective_KL, x0, args=(V_samples[1::2]),constraints=(constraints), bounds=[(lower_bound,None)])
             self.alpha3 = result.x[0]
             vf1 = -self.alpha1*np.log(np.average(np.exp(-V_samples/self.alpha1))) - self.alpha1*self.sigma
             vf2 = -self.alpha2*np.log(np.average(np.exp(-V_samples[::2]/self.alpha2))) - self.alpha2*self.sigma
             vf3 = -self.alpha3*np.log(np.average(np.exp(-V_samples[1::2]/self.alpha3))) - self.alpha3*self.sigma
         elif(self.ch==0):
-            constraints = [{'type': 'ineq', 'fun': lambda x: x}]
+            constraints = {'type': 'ineq', 'fun': lambda x: x}
             x0 = 1.0
-            result = minimize(self.objective_TV, x0,args=(V_samples), constraints=constraints, bounds=[(0, None)])
+            result = minimize(self.objective_TV, x0,args=(V_samples), constraints=(constraints), bounds=[(0, None)])
             vf1 = -result.fun
-            result = minimize(self.objective_TV, x0,args=(V_samples[::2]), constraints=constraints, bounds=[(0, None)])
+            result = minimize(self.objective_TV, x0,args=(V_samples[::2]), constraints=(constraints), bounds=[(0, None)])
             vf2 = -result.fun
-            result = minimize(self.objective_TV, x0, args=(V_samples[1::2]),constraints=constraints, bounds=[(0, None)])
+            result = minimize(self.objective_TV, x0, args=(V_samples[1::2]),constraints=(constraints), bounds=[(0, None)])
             vf3 = -result.fun
         elif(self.ch==1):
-            constraints = [{'type': 'ineq', 'fun': lambda x: x}]
+            constraints = {'type': 'ineq', 'fun': lambda x: x}
             x0 = 1.0
-            result = minimize(self.objective_chi_sq, x0,args=(V_samples), constraints=constraints, bounds=[(0, None)])
+            result = minimize(self.objective_chi_sq, x0,args=(V_samples), constraints=(constraints), bounds=[(0, None)])
             vf1 = -result.fun
-            result = minimize(self.objective_chi_sq, x0,args=(V_samples[::2]), constraints=constraints, bounds=[(0, None)])
+            result = minimize(self.objective_chi_sq, x0,args=(V_samples[::2]), constraints=(constraints), bounds=[(0, None)])
             vf2 = -result.fun
-            result = minimize(self.objective_chi_sq, x0, args=(V_samples[1::2]),constraints=constraints, bounds=[(0, None)])
+            result = minimize(self.objective_chi_sq, x0, args=(V_samples[1::2]),constraints=(constraints), bounds=[(0, None)])
             vf3 = -result.fun
         vf = vf1-vf2/2-vf3/2;
+        #print(vf)
+        #input()
         if(math.isnan(vf)):
             print("VF1=",vf1)
             print("VF2=",vf2)
@@ -93,7 +96,7 @@ class get_min_vf:
         rew3 = 0;
         if self.ch==2:
             lower_bound = 1e-5  # Prevent x from being too small
-            constraints = [{'type': 'ineq', 'fun': lambda x: x[0] - lower_bound}]
+            constraints = [{'type': 'ineq', 'fun': lambda x: x - lower_bound}]
             x0 = 1.0
             result = minimize(self.objective_KL, x0,args=(rew_samples), constraints=constraints, bounds=[(lower_bound, None)])
             self.alpha1 = result.x[0]
@@ -137,6 +140,8 @@ class get_min_vf:
         P_N2 = self.psi*np.power((1-self.psi),N2)
         del_V_sa_ = self.del_V_s_a(V)
         vf = V[0]+del_V_sa_/P_N2
+        #print(vf)
+        #input()
         if(math.isnan(vf)):
             print("V_0=",V[0])
             print("delV_sa=",del_V_sa_)
@@ -150,6 +155,8 @@ class get_min_vf:
             for s in range(self.nS):
                 V[s] = np.max(self.Q[s,:])
                 pol[s] = np.argmax(self.Q[s,:])
+            print("Value functions:",V)
+            print("Policy:",pol)
             for s in range(self.nS):
                 for a in range(self.nA):
                     N1,N2 = np.random.geometric(self.psi),np.random.geometric(self.psi)
@@ -159,17 +166,18 @@ class get_min_vf:
                     #Computing \hat{r^{\rho(\sigma)}}(s,a)
                     r_hat = self.get_reward_integrated(rew_samples,N1)
                     #print("r_hat",r_hat)
-                    next_state_samples = np.random.choice(len(self.p_sa[0,0]),NN2,p=self.p_sa[a,s])
+                    choice = np.random.choice(len(self.P))
+                    next_state_samples = np.random.choice(len(self.p_sa[0,0]),NN2,p=self.P[choice,a,s,:])
                     #self.p_sa[s,a,np.random.choice(len(self.p_sa[0,0]),NN2)]#careful here
                     #Updating Q values
                     V_samples = V[next_state_samples]
                     V_rho = self.get_integrated_vf(V_samples,s,a,N2)
                     #print("V_rho=",V_rho)
                     self.Q[s,a] = (1-self.beta[t])*self.Q[s,a] + self.beta[t]*self.robust_bellman(r_hat,V_rho)
-            policy = ""
+            '''policy = ""
             for j in range(self.nS):
                 policy = policy + str(np.argmax(self.Q[j]))
-            df[run][t] = pol_dict[policy]
+            df[run][t] = pol_dict[policy]'''
         print("Q-table updation complete")
     def get_Q_table(self):
         return self.Q

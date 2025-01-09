@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 14 18:00:18 2024
-
-@author: gangu
-"""
 import gym
 from gym import spaces
 import numpy as np
@@ -31,11 +25,20 @@ class River_swim:
         self.P[0,self.nS-1,self.nS-1] = 0.7
         self.P[0,self.nS-1,self.nS-2] = 0.3
         return self.P
+    def gen_reward(self):
+        self.R = np.zeros((self.nA,self.nS,self.nS))
+        self.R[0,0,:] = 0.01
+        self.R[1,self.nS-1,:] = 1
     def gen_expected_reward(self):
         self.R = np.zeros((self.nA,self.nS))
         self.R[0,0] = 0.01
         self.R[1,self.nS-1] = 1
         return self.R
+    def gen_cost(self):
+        self.C = np.zeros((self.nA,self.nS,self.nS))
+        for s in range(self.nS):
+            self.C[:,s,:] = s/10
+        return self.C
     def gen_expected_cost(self):
         self.C = np.zeros((self.nA,self.nS))
         for s in range(self.nS):
@@ -60,7 +63,7 @@ class Machine_Replacement:
             self.P[0,i,:]=self.P[0,i,:]/np.sum(self.P[0,i,:])
             self.P[1,i,0]=1;
         return self.P;
-    def gen_reward(self,ch=0): #ch=0 means cost based, ch=1 means -cost based and ch=2 means rew = (1- cost) based
+    def gen_reward(self,ch=2): #ch=0 means cost based, ch=1 means -cost based and ch=2 means rew = (1- cost) based
         self.R=np.zeros((self.nA,self.nS,self.nS));
         for i in range(self.nS):
             self.R[0,i,:] = self.cost[i];
@@ -77,7 +80,7 @@ class Machine_Replacement:
             return self.R
         else:
             print("Incorrect choice")
-    def gen_expected_reward(self,ch=1):
+    def gen_expected_reward(self,ch=2):
         self.R = np.zeros((self.nA,self.nS));
         for i in range(self.nS):
             self.R[0,i] = self.cost[i];
@@ -90,8 +93,15 @@ class Machine_Replacement:
             for s in range(self.nS):
                 for a in range(self.nA):
                     self.R[a,s] = 1 - self.R[a,s]
+            return self.R
         else:
             print("Illegal choice")
+    def get_cost(self):
+        self.C = np.zeros((self.nA,self.nS));
+        for i in range(self.nS):
+            self.C[0,i,:] = self.cost[i];
+            self.C[1,i,:] = self.safety_cost + self.cost[0];
+        return self.C;
     def gen_expected_cost(self):
         self.C = np.zeros((self.nA,self.nS));
         for i in range(self.nS):
